@@ -24,7 +24,8 @@ namePo = path+"/"+title+"Po.vbs"
 nameSo = path+"/"+title+"So.vbs"
 
 def code(soOrPo, personCode, row, itemcode, quantity, cost, currency, creditorOrDebtor,name):
-	message ="""
+        if soOrPo == 'po':
+                message ="""
 
 Const ForReading = 1, ForWriting = 2, ForAppending = 8
 
@@ -36,7 +37,7 @@ Set wb = xls.Workbooks.Open(Wscript.Arguments(0))
 
 re.pattern = "\\[^\\]*$"
 'path = re.Replace(Wscript.Arguments(0), "")
-path = %s
+path = "%s"
 Set po = filesys.OpenTextFile(path & "\%s%s.xml", 2, True, -1)
 
 po.writeline("<?xml version=""1.0""?>")
@@ -77,8 +78,64 @@ po.writeline("</Orders>")
 po.writeline("</eExact>")
 MsgBox "Created %s%s.xml in " & path
 
-	"""%(soOrPo,path,name,creditorOrDebtor ,personCode,row,itemcode,quantity,cost,currency,soOrPo,name)
-	return message
+                """%(path,soOrPo,name,creditorOrDebtor ,personCode,row,itemcode,quantity,cost,currency,soOrPo,name)
+        else:
+                message = """
+
+Const ForReading = 1, ForWriting = 2, ForAppending = 8
+
+Set filesys = CreateObject("Scripting.FileSystemObject")
+Set re = New RegExp
+Set xls = CreateObject("Excel.Application")
+Set wb = xls.Workbooks.Open(Wscript.Arguments(0))
+
+
+re.pattern = "\\[^\\]*$"
+'path = re.Replace(Wscript.Arguments(0), "")
+path = "%s"
+Set po = filesys.OpenTextFile(path & "\%s%s.xml", 2, True, -1)
+
+po.writeline("<?xml version=""1.0""?>")
+po.writeline("<eExact xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:noNamespaceSchemaLocation='eExact-Schema.xsd'>")
+po.writeline("<Orders>")
+po.writeline("<Order type='V'>")
+po.writeline("<YourRef>auto_import</YourRef>")
+po.writeline("<OrderedBy><%s code='%s'/></OrderedBy>")
+
+set sheet = wb.Sheets(1)
+
+re.pattern = "(.*-.*)-.*"
+
+Row = %s
+
+do
+        itemcode = sheet.Cells(row, %s).Value
+        quantity = sheet.Cells(row, %s).Value
+        price    = sheet.Cells(row, %s).Value
+
+        price    = Replace(Round(price, 3), ",", ".")
+        itemcode = re.Replace(itemcode, "$1")
+
+        If Itemcode <> "" Then
+                po.writeline("	<OrderLine>")
+                po.writeline("		<Item code='" & itemcode & "'/>")
+                po.writeline("		<Quantity>" & quantity & "</Quantity>")
+                po.writeline("		<Price type='S'><Currency code='%s' /><Value>" & price & "</Value></Price>")
+                po.writeline("	</OrderLine>")
+
+                row = row + 1
+        End If
+loop while Itemcode <> ""
+
+wb.close
+
+po.writeline("</Order>")
+po.writeline("</Orders>")
+po.writeline("</eExact>")
+MsgBox "Created %s%s.xml in " & path
+                """%(path,soOrPo,name,creditorOrDebtor ,personCode,row,itemcode,quantity,cost,currency,soOrPo,name)
+
+        return message
 
 
 PoScript = open(namePo,'w')
